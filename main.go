@@ -43,7 +43,7 @@ func main() {
 		w.Write(bytes)
 	}).Methods("GET")
 
-	router.HandleFunc("rooms/{id}", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/rooms/{id}", func(w http.ResponseWriter, r *http.Request) {
 		lib.ServeWs(rooms, w, r)
 	})
 	stop := make(chan bool)
@@ -68,7 +68,7 @@ func main() {
 	go func() {
 		srv := &http.Server{
 			Handler:      router,
-			Addr:         "192.168.0.180:50000",
+			Addr:         "192.168.0.181:50000",
 			WriteTimeout: 15 * time.Second,
 			ReadTimeout:  15 * time.Second,
 		}

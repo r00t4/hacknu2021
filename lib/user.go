@@ -533,7 +533,7 @@ func ServeWs(rooms *Rooms, w http.ResponseWriter, r *http.Request) {
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(mediaEngine))
 	peerConnection, err := api.NewPeerConnection(peerConnectionConfig)
 
-	roomID := strings.ReplaceAll(r.URL.Path, "/", "")
+	roomID := strings.ReplaceAll(r.URL.Path, "/rooms/", "")
 	room := rooms.GetOrCreate(roomID)
 
 	log.Println("ws connection to room:", roomID, len(room.GetUsers()), "users")
