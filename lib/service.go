@@ -3,6 +3,7 @@ package lib
 import (
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v3"
 	"io"
@@ -10,7 +11,6 @@ import (
 )
 
 type Service struct {
-
 }
 
 func (srv *Service) Welcome() (*WelcomeResponse, error) {
@@ -33,12 +33,14 @@ func (srv *Service) VideoWorker(body <-chan string, ans chan<- string) {
 	// Create a new RTCPeerConnection
 	peerConnection, err := webrtc.NewPeerConnection(peerConnectionConfig)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	// Allow us to receive 1 video track
 	if _, err = peerConnection.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo); err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	localTrackChan := make(chan *webrtc.TrackLocalStaticRTP)
@@ -55,11 +57,13 @@ func (srv *Service) VideoWorker(body <-chan string, ans chan<- string) {
 				}
 			}
 		}()
+		id := uuid.New()
 
 		// Create a local track, all our SFU clients will be fed via this track
-		localTrack, newTrackErr := webrtc.NewTrackLocalStaticRTP(remoteTrack.Codec().RTPCodecCapability, "video", "pion")
+		localTrack, newTrackErr := webrtc.NewTrackLocalStaticRTP(remoteTrack.Codec().RTPCodecCapability, "video_"+id.String(), "pion_"+id.String())
 		if newTrackErr != nil {
-			panic(newTrackErr)
+			fmt.Println(err)
+			return
 		}
 		localTrackChan <- localTrack
 
@@ -67,12 +71,14 @@ func (srv *Service) VideoWorker(body <-chan string, ans chan<- string) {
 		for {
 			i, _, readErr := remoteTrack.Read(rtpBuf)
 			if readErr != nil {
-				panic(readErr)
+				fmt.Println(err)
+				return
 			}
 
 			// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
 			if _, err = localTrack.Write(rtpBuf[:i]); err != nil && !errors.Is(err, io.ErrClosedPipe) {
-				panic(err)
+				fmt.Println(err)
+				return
 			}
 		}
 	})
@@ -80,13 +86,15 @@ func (srv *Service) VideoWorker(body <-chan string, ans chan<- string) {
 	// Set the remote SessionDescription
 	err = peerConnection.SetRemoteDescription(offer)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	// Create answer
 	answer, err := peerConnection.CreateAnswer(nil)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	// Create channel that is blocked until ICE Gathering is complete
@@ -95,7 +103,8 @@ func (srv *Service) VideoWorker(body <-chan string, ans chan<- string) {
 	// Sets the LocalDescription, and starts our UDP listeners
 	err = peerConnection.SetLocalDescription(answer)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	// Block until ICE Gathering is complete, disabling trickle ICE
@@ -118,12 +127,14 @@ func (srv *Service) VideoWorker(body <-chan string, ans chan<- string) {
 		// Create a new PeerConnection
 		peerConnection, err := webrtc.NewPeerConnection(peerConnectionConfig)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			return
 		}
 
 		rtpSender, err := peerConnection.AddTrack(localTrack)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			return
 		}
 
 		// Read incoming RTCP packets
@@ -141,13 +152,15 @@ func (srv *Service) VideoWorker(body <-chan string, ans chan<- string) {
 		// Set the remote SessionDescription
 		err = peerConnection.SetRemoteDescription(recvOnlyOffer)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			return
 		}
 
 		// Create answer
 		answer, err := peerConnection.CreateAnswer(nil)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			return
 		}
 
 		// Create channel that is blocked until ICE Gathering is complete
@@ -156,7 +169,8 @@ func (srv *Service) VideoWorker(body <-chan string, ans chan<- string) {
 		// Sets the LocalDescription, and starts our UDP listeners
 		err = peerConnection.SetLocalDescription(answer)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			return
 		}
 
 		// Block until ICE Gathering is complete, disabling trickle ICE
@@ -173,7 +187,11 @@ func (srv *Service) VideoWorker(body <-chan string, ans chan<- string) {
 func (srv *Service) AudioWorker(body <-chan string, ans chan<- string) {
 	offer := webrtc.SessionDescription{}
 	b := <-body
-	Decode(b, &offer)
+	if err := Decode(b, &offer); err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("something has come..")
 
 	peerConnectionConfig := webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
@@ -186,12 +204,14 @@ func (srv *Service) AudioWorker(body <-chan string, ans chan<- string) {
 	// Create a new RTCPeerConnection
 	peerConnection, err := webrtc.NewPeerConnection(peerConnectionConfig)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
-	// Allow us to receive 1 video track
+	// Allow us to receive 1 audio track
 	if _, err = peerConnection.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio); err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	localTrackChan := make(chan *webrtc.TrackLocalStaticRTP)
@@ -208,11 +228,13 @@ func (srv *Service) AudioWorker(body <-chan string, ans chan<- string) {
 				}
 			}
 		}()
+		id := uuid.New()
 
 		// Create a local track, all our SFU clients will be fed via this track
-		localTrack, newTrackErr := webrtc.NewTrackLocalStaticRTP(remoteTrack.Codec().RTPCodecCapability, "video", "pion")
+		localTrack, newTrackErr := webrtc.NewTrackLocalStaticRTP(remoteTrack.Codec().RTPCodecCapability, "audio_"+id.String(), "pion_"+id.String())
 		if newTrackErr != nil {
-			panic(newTrackErr)
+			fmt.Println(newTrackErr)
+			return
 		}
 		localTrackChan <- localTrack
 
@@ -220,12 +242,14 @@ func (srv *Service) AudioWorker(body <-chan string, ans chan<- string) {
 		for {
 			i, _, readErr := remoteTrack.Read(rtpBuf)
 			if readErr != nil {
-				panic(readErr)
+				fmt.Println(readErr)
+				return
 			}
 
 			// ErrClosedPipe means we don't have any subscribers, this is ok if no peers have connected yet
 			if _, err = localTrack.Write(rtpBuf[:i]); err != nil && !errors.Is(err, io.ErrClosedPipe) {
-				panic(err)
+				fmt.Println(err)
+				return
 			}
 		}
 	})
@@ -233,13 +257,15 @@ func (srv *Service) AudioWorker(body <-chan string, ans chan<- string) {
 	// Set the remote SessionDescription
 	err = peerConnection.SetRemoteDescription(offer)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	// Create answer
 	answer, err := peerConnection.CreateAnswer(nil)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	// Create channel that is blocked until ICE Gathering is complete
@@ -248,7 +274,8 @@ func (srv *Service) AudioWorker(body <-chan string, ans chan<- string) {
 	// Sets the LocalDescription, and starts our UDP listeners
 	err = peerConnection.SetLocalDescription(answer)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	// Block until ICE Gathering is complete, disabling trickle ICE
@@ -266,17 +293,21 @@ func (srv *Service) AudioWorker(body <-chan string, ans chan<- string) {
 		fmt.Println("Curl an base64 SDP to start sendonly peer connection")
 
 		recvOnlyOffer := webrtc.SessionDescription{}
-		Decode(<-body, &recvOnlyOffer)
-
+		if err := Decode(<-body, &recvOnlyOffer); err != nil {
+			fmt.Println(err)
+			return
+		}
 		// Create a new PeerConnection
 		peerConnection, err := webrtc.NewPeerConnection(peerConnectionConfig)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			return
 		}
 
 		rtpSender, err := peerConnection.AddTrack(localTrack)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			return
 		}
 
 		// Read incoming RTCP packets
@@ -294,13 +325,15 @@ func (srv *Service) AudioWorker(body <-chan string, ans chan<- string) {
 		// Set the remote SessionDescription
 		err = peerConnection.SetRemoteDescription(recvOnlyOffer)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			return
 		}
 
 		// Create answer
 		answer, err := peerConnection.CreateAnswer(nil)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			return
 		}
 
 		// Create channel that is blocked until ICE Gathering is complete
@@ -309,7 +342,8 @@ func (srv *Service) AudioWorker(body <-chan string, ans chan<- string) {
 		// Sets the LocalDescription, and starts our UDP listeners
 		err = peerConnection.SetLocalDescription(answer)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			return
 		}
 
 		// Block until ICE Gathering is complete, disabling trickle ICE

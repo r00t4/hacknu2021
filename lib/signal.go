@@ -56,10 +56,10 @@ func Encode(obj interface{}) string {
 
 // Decode decodes the input from base64
 // It can optionally unzip the input after decoding
-func Decode(in string, obj interface{}) {
+func Decode(in string, obj interface{}) error {
 	b, err := base64.StdEncoding.DecodeString(in)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	if compress {
@@ -68,8 +68,9 @@ func Decode(in string, obj interface{}) {
 
 	err = json.Unmarshal(b, obj)
 	if err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
 
 func zip(in []byte) []byte {

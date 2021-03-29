@@ -19,6 +19,16 @@
         pc.onicecandidate = event => {
             if (event.candidate === null) {
                 document.getElementById('localSessionDescription').value = btoa(JSON.stringify(pc.localDescription))
+                fetch("/establish-audio-sdp", {
+                    method: "POST",
+                    body: btoa(JSON.stringify(pc.localDescription))
+                }).then(res => {
+                    res.text().then(text => {
+                        console.log("Request complete! response:", text);
+                        document.getElementById('remoteSessionDescription').value = text
+                        window.startSession()
+                    });
+                });
             }
         }
 
